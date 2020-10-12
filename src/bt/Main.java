@@ -19,11 +19,6 @@ public class Main
 {
     public static void main(String[] args) throws IOException
     {
-        Logger.global().setPrintCaller(false);
-        Logger.global().setLogToFile(false);
-        Logger.global().hookSystemOut();
-        Logger.global().hookSystemErr();
-
         var parser = new CommandParser("-");
 
         var discoverCmd = new FlagCommand("discover", "d").usage("-discover")
@@ -51,7 +46,7 @@ public class Main
 
                 if (!message.trim().equalsIgnoreCase("discover"))
                 {
-                    Logger.global().print(message);
+                    System.out.println(message);
                 }
             });
 
@@ -90,7 +85,7 @@ public class Main
             }
             else
             {
-                Logger.global().print("Usage: btc [-host <hostname>] -port <portnumber>");
+                System.out.println("Usage: btc [-host <hostname>] -port <portnumber>");
             }
         }
     }

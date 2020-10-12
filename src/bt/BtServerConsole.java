@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.Scanner;
 
 import bt.async.AsyncException;
-import bt.log.Logger;
 import bt.remote.socket.Client;
 import bt.runtime.InstanceKiller;
 import bt.types.Killable;
@@ -29,7 +28,7 @@ public class BtServerConsole implements Killable
         }
         catch (IOException e)
         {
-            Logger.global().print(e);
+            e.printStackTrace();
             System.exit(-1);
         }
 
@@ -38,7 +37,7 @@ public class BtServerConsole implements Killable
 
     public void init() throws IOException
     {
-        Logger.global().print("\r\n====================================================="
+        System.out.println("\r\n====================================================="
                               + "\r\n______ _   _____                       _      "
                               + "\r\n| ___ \\ | /  __ \\                     | |     "
                               + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
@@ -51,7 +50,7 @@ public class BtServerConsole implements Killable
         this.client.start();
         this.input = new Scanner(System.in);
         InstanceKiller.killOnShutdown(this);
-        Logger.global().print("Connected to " + this.client.getHost() + ":" + this.client.getPort());
+        System.out.println("Connected to " + this.client.getHost() + ":" + this.client.getPort());
     }
 
     protected void handleInput()
@@ -73,19 +72,19 @@ public class BtServerConsole implements Killable
 
                 if (response instanceof Throwable)
                 {
-                    Logger.global().print((Throwable)response);
+                    ((Throwable)response).printStackTrace();
                     continue;
                 }
 
-                Logger.global().print(response);
+                System.out.println(response);
             }
             catch (AsyncException e)
             {
-                Logger.global().print("Request timed out.");
+                System.err.println("Request timed out.");
             }
             catch (IOException e)
             {
-                Logger.global().print(e);
+                e.printStackTrace();
             }
         }
     }
