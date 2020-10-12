@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit;
 import bt.console.input.CommandParser;
 import bt.console.input.FlagCommand;
 import bt.console.input.ValueCommand;
-import bt.log.Logger;
 import bt.remote.socket.MulticastClient;
 import bt.scheduler.Threads;
 
@@ -60,7 +59,7 @@ public class Main
                 }
                 catch (IOException e)
                 {
-                    Logger.global().print(e);
+                    e.printStackTrace();
                 }
 
             }, 1, TimeUnit.SECONDS);
