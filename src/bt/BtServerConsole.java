@@ -47,6 +47,7 @@ public class BtServerConsole implements Killable
                               + "\r\n=====================================================");
 
         this.client = new Client(this.host, this.port);
+        this.client.autoReconnect(3);
         this.client.start();
         this.input = new Scanner(System.in);
         InstanceKiller.killOnShutdown(this);
