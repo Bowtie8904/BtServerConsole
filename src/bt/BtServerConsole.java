@@ -38,20 +38,28 @@ public class BtServerConsole implements Killable
     public void init() throws IOException
     {
         System.out.println("\r\n====================================================="
-                              + "\r\n______ _   _____                       _      "
-                              + "\r\n| ___ \\ | /  __ \\                     | |     "
-                              + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
-                              + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
-                              + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
-                              + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
-                              + "\r\n=====================================================");
+                           + "\r\n______ _   _____                       _      "
+                           + "\r\n| ___ \\ | /  __ \\                     | |     "
+                           + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
+                           + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
+                           + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
+                           + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
+                           + "\r\n=====================================================");
 
         this.client = new Client(this.host, this.port);
         this.client.autoReconnect(3);
         this.client.start();
         this.input = new Scanner(System.in);
         InstanceKiller.killOnShutdown(this);
-        System.out.println("Connected to " + this.client.getHost() + ":" + this.client.getPort());
+
+        if (this.client.isConnected())
+        {
+            System.out.println("Connected to " + this.client.getHost() + ":" + this.client.getPort());
+        }
+        else
+        {
+            System.exit(-1);
+        }
     }
 
     protected void handleInput()
