@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
-import bt.console.input.CommandParser;
-import bt.console.input.FlagCommand;
-import bt.console.input.ValueCommand;
+import bt.console.input.ArgumentParser;
+import bt.console.input.FlagArgument;
+import bt.console.input.ValueArgument;
 import bt.remote.socket.MulticastClient;
 import bt.scheduler.Threads;
 
@@ -18,21 +18,21 @@ public class Main
 {
     public static void main(String[] args) throws IOException
     {
-        var parser = new CommandParser("-");
+        var parser = new ArgumentParser("-");
 
-        var discoverCmd = new FlagCommand("discover", "d").usage("-discover")
-                                                          .description("Attempts to discover possible servers to connect to.");
+        var discoverCmd = new FlagArgument("discover", "d").usage("-discover")
+                                                           .description("Attempts to discover possible servers to connect to.");
 
-        var hostCmd = new ValueCommand("host").usage("-host <hostname>")
-                                              .description("[Optional] Sets the hostname to connect to. Ommit to connect to localhost.");
+        var hostCmd = new ValueArgument("host").usage("-host <hostname>")
+                                               .description("[Optional] Sets the hostname to connect to. Ommit to connect to localhost.");
 
-        var portCmd = new ValueCommand("port").usage("-port <portnumber>")
+        var portCmd = new ValueArgument("port").usage("-port <portnumber>")
                                               .description("Sets the port to connect to.");
 
         parser.register(discoverCmd);
         parser.register(hostCmd);
         parser.register(portCmd);
-        parser.registerDefaultHelpCommand("help", "h");
+        parser.registerDefaultHelpArgument("help", "h");
         parser.parse(args);
 
         if (discoverCmd.isExecuted())

@@ -23,7 +23,7 @@
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtConsole</artifactId>
-            <version>master-SNAPSHOT</version>
+            <version>c1fe76a18b</version>
         </dependency>
     </dependencies>
   <build>
