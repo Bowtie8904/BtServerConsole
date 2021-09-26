@@ -23,15 +23,19 @@ public class Main
         var discoverCmd = new FlagArgument("discover", "d").usage("-discover")
                                                            .description("Attempts to discover possible servers to connect to.");
 
-        var hostCmd = new ValueArgument("host").usage("-host <hostname>")
+        var hostCmd = new ValueArgument("host", "h").usage("-host <hostname>")
                                                .description("[Optional] Sets the hostname to connect to. Ommit to connect to localhost.");
 
-        var portCmd = new ValueArgument("port").usage("-port <portnumber>")
-                                              .description("Sets the port to connect to.");
+        var portCmd = new ValueArgument("port", "p").usage("-port <portnumber>")
+                                               .description("Sets the port to connect to.");
+
+        var rawCmd = new FlagArgument("raw", "r").usage("-raw")
+                                                 .description("[Optional] Sets the type of client to raw to send and receive raw byte data.");
 
         parser.register(discoverCmd);
         parser.register(hostCmd);
         parser.register(portCmd);
+        parser.register(rawCmd);
         parser.registerDefaultHelpArgument("help", "h");
         parser.parse(args);
 
@@ -79,12 +83,12 @@ public class Main
             {
                 port = Integer.parseInt(portCmd.getValue());
                 String host = hostCmd.getValue() != null ? hostCmd.getValue() : "localhost";
-                new BtServerConsole(host, port);
+                new BtServerConsole(host, port, !rawCmd.isExecuted());
                 System.exit(0);
             }
             else
             {
-                System.out.println("Usage: btc [-host <hostname>] -port <portnumber>");
+                System.out.println("Usage: btc [-host <hostname>] -port <portnumber> [-raw]");
             }
         }
     }
