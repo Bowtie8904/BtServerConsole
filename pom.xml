@@ -18,12 +18,12 @@
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtDatabase</artifactId>
-            <version>072359a</version>
+            <version>b666c737</version>
         </dependency>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtConsole</artifactId>
-            <version>c1fe76a18b</version>
+            <version>c3dc3a82</version>
         </dependency>
     </dependencies>
   <build>

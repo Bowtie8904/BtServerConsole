@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 import bt.async.AsyncException;
+import bt.console.output.styled.Style;
 import bt.remote.socket.Client;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.RawClient;
@@ -35,7 +36,7 @@ public class BtServerConsole implements Killable
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            System.err.println(Style.apply(e));
             System.exit(-1);
         }
 
@@ -81,13 +82,31 @@ public class BtServerConsole implements Killable
         this.client.setSingleThreadProcessing(true);
         this.client.autoReconnect(3);
 
-        client.getEventDispatcher().subscribeTo(ConnectionSuccessfull.class, e -> System.out.println("Connected to " + e.getClient().getHost() + ":" + e.getClient().getPort()));
-        client.getEventDispatcher().subscribeTo(ConnectionFailed.class, e -> printMessageAndStackTrace("Failed to connect to " + e.getClient().getHost() + ":" + e.getClient().getPort(), e));
-        client.getEventDispatcher().subscribeTo(ConnectionLost.class, e -> printMessageAndStackTrace("Connection to " + e.getClient().getHost() + ":" + e.getClient().getPort() + " lost", e));
-        client.getEventDispatcher().subscribeTo(ReconnectStarted.class, e -> System.out.println("Attempting to reconnect to " + e.getClient().getHost() + ":" + e.getClient().getPort()));
-        client.getEventDispatcher().subscribeTo(ReconnectSuccessfull.class, e -> System.out.println("Successfully reconnected to " + e.getClient().getHost() + ":" + e.getClient().getPort()));
-        client.getEventDispatcher().subscribeTo(ReconnectFailed.class, e -> printMessageAndStackTrace("Failed to reconnect to " + e.getClient().getHost() + ":" + e.getClient().getPort(), e));
-        client.getEventDispatcher().subscribeTo(ReconnectAttemptFailed.class, e -> System.err.println("Attempt " + e.getAttempt() + " / " + (e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts()) + " failed"));
+        client.getEventDispatcher().subscribeTo(ConnectionSuccessfull.class, e -> printMessage("Connected to %s:%s",
+                                                                                               formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ConnectionFailed.class, e -> printMessageAndStackTrace("Failed to connect to %s:%s",
+                                                                                                       e,
+                                                                                                       formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ConnectionLost.class, e -> printMessageAndStackTrace("Connection to %s:%s lost",
+                                                                                                     e,
+                                                                                                     formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ReconnectStarted.class, e -> printMessage("Attempting to reconnect to %s:%s",
+                                                                                          formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ReconnectSuccessfull.class, e -> printMessage("Successfully reconnected to %s:%s",
+                                                                                              formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ReconnectFailed.class, e -> printMessageAndStackTrace("Failed to reconnect to %s:%s",
+                                                                                                      e,
+                                                                                                      formatHostPort(e)));
+
+        client.getEventDispatcher().subscribeTo(ReconnectAttemptFailed.class, e -> printErrorMessage("Attempt %s/%s failed",
+                                                                                                     Style.apply(e.getAttempt() + "", "-red", "yellow"),
+                                                                                                     Style.apply((e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts() + ""), "-red", "yellow")));
+
         client.getEventDispatcher().subscribeTo(UnspecifiedException.class, e -> printMessageAndStackTrace("Error", e));
 
         this.client.start();
@@ -100,10 +119,29 @@ public class BtServerConsole implements Killable
         }
     }
 
-    private void printMessageAndStackTrace(String message, ClientExceptionEvent e)
+    private String[] formatHostPort(ClientEvent e)
     {
-        System.err.println(message);
-        e.getException().printStackTrace();
+        return new String[]
+                {
+                        Style.apply(e.getClient().getHost(), "-red", "yellow"),
+                        Style.apply(e.getClient().getPort() + "", "-red", "yellow")
+                };
+    }
+
+    private void printMessageAndStackTrace(String message, ClientExceptionEvent e, String... formatStrings)
+    {
+        System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
+        System.err.println(Style.apply(e.getException()));
+    }
+
+    private void printMessage(String message, String... formatStrings)
+    {
+        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
+    }
+
+    private void printErrorMessage(String message, String... formatStrings)
+    {
+        System.err.println(String.format(Style.apply(message, "red"), formatStrings));
     }
 
     protected void handleInput()
@@ -127,7 +165,7 @@ public class BtServerConsole implements Killable
 
                     if (response instanceof Throwable)
                     {
-                        ((Throwable)response).printStackTrace();
+                        System.err.println(Style.apply((Throwable)response));
                         continue;
                     }
 
@@ -140,11 +178,11 @@ public class BtServerConsole implements Killable
             }
             catch (AsyncException e)
             {
-                System.err.println("Request timed out.");
+                printErrorMessage("Request timed out.");
             }
             catch (IOException e)
             {
-                e.printStackTrace();
+                System.err.println(Style.apply(e));
             }
         }
     }
