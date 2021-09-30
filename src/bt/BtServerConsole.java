@@ -1,34 +1,34 @@
 package bt;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Scanner;
-
 import bt.async.AsyncException;
+import bt.async.Data;
 import bt.console.output.styled.Style;
-import bt.remote.socket.Client;
 import bt.remote.socket.ObjectClient;
-import bt.remote.socket.RawClient;
-import bt.remote.socket.evnt.*;
+import bt.remote.socket.Server;
+import bt.remote.socket.ServerClient;
+import bt.remote.socket.data.DataProcessor;
+import bt.remote.socket.evnt.mcast.MulticastClientKilled;
+import bt.remote.socket.evnt.mcast.MulticastClientStarted;
+import bt.remote.socket.evnt.mcast.UnspecifiedMulticastClientException;
+import bt.remote.socket.evnt.server.*;
 import bt.runtime.InstanceKiller;
 import bt.types.Killable;
 import bt.utils.Exceptions;
 import bt.utils.Null;
 
-public class BtServerConsole implements Killable
+import java.io.IOException;
+import java.net.Socket;
+import java.util.Scanner;
+
+public class BtServerConsole implements Killable, DataProcessor
 {
-    private Client client;
+    private Server server;
     private Scanner input;
     private int port;
-    private String host;
-    private boolean objectClient;
 
-    public BtServerConsole(String host, int port, boolean objectClient)
+    public BtServerConsole(int port)
     {
-        this.host = host;
         this.port = port;
-        this.objectClient = objectClient;
 
         try
         {
@@ -46,102 +46,59 @@ public class BtServerConsole implements Killable
     public void init() throws IOException
     {
         System.out.println("\r\n====================================================="
-                           + "\r\n______ _   _____                       _      "
-                           + "\r\n| ___ \\ | /  __ \\                     | |     "
-                           + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
-                           + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
-                           + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
-                           + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
-                           + "\r\n=====================================================");
+                                   + "\r\n______ _   _____                       _      "
+                                   + "\r\n| ___ \\ | /  __ \\                     | |     "
+                                   + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
+                                   + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
+                                   + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
+                                   + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
+                                   + "\r\n=====================================================");
 
-        if (this.objectClient)
+        this.server = new Server(this.port)
         {
-            this.client = new ObjectClient(this.host, this.port);
-            ((ObjectClient)this.client).setDataProcessor(data -> {
-                System.out.println(data.get());
-                return null;
-            });
-        }
-        else
-        {
-            this.client = new RawClient(this.host, this.port);
-            ((RawClient)this.client).setByteProcessor(data -> {
-                int[] intData = new int[data.length];
+            @Override
+            protected ServerClient createClient(Socket socket) throws IOException
+            {
+                ServerClient client = super.createClient(socket);
+                client.setDataProcessor(BtServerConsole.this);
+                client.setSingleThreadProcessing(true);
 
-                for (int i = 0; i < data.length; i++)
-                {
-                    intData[i] = Byte.toUnsignedInt(data[i]);
-                }
+                return client;
+            }
+        };
 
-                System.out.println(Arrays.toString(intData));
+        this.server.getEventDispatcher().subscribeTo(ServerKilled.class, e -> printMessage("Server stopped listening on port %s",
+                                                                                           Style.apply(e.getServer().getPort() + "", "yellow")));
+        this.server.getEventDispatcher().subscribeTo(ServerStarted.class, e -> printMessage("Server started listening on port %s",
+                                                                                            Style.apply(e.getServer().getPort() + "", "yellow")));
+        this.server.getEventDispatcher().subscribeTo(NewClientConnection.class, e -> printMessage("New connection to %s:%s",
+                                                                                                  formatClientPort(e)));
+        this.server.getEventDispatcher().subscribeTo(RemovedClientConnection.class, e -> printMessage("Connection to %s:%s ended",
+                                                                                                      formatClientPort(e)));
+        this.server.getEventDispatcher().subscribeTo(MulticastClientStarted.class, e -> printMessage("Multicast client started listening on %s:%s",
+                                                                                                     Style.apply(e.getClient().getMulticastGroup().getHostAddress(), "yellow"),
+                                                                                                     Style.apply(e.getClient().getPort() + "", "yellow")));
+        this.server.getEventDispatcher().subscribeTo(MulticastClientKilled.class, e -> printMessage("Multicast client stopped listening on %s:%s",
+                                                                                                    Style.apply(e.getClient().getMulticastGroup().getHostAddress(), "yellow"),
+                                                                                                    Style.apply(e.getClient().getPort() + "", "yellow")));
+        this.server.getEventDispatcher().subscribeTo(UnspecifiedServerException.class, e -> printMessageAndStackTrace("Error", e.getException()));
+        this.server.getEventDispatcher().subscribeTo(UnspecifiedMulticastClientException.class, e -> printMessageAndStackTrace("Error", e.getException()));
 
-                return null;
-            });
-        }
+        this.server.setupMultiCastDiscovering();
+        this.server.setName("BtServerConsole:" + this.port);
 
-        this.client.setSingleThreadProcessing(true);
-        this.client.autoReconnect(3);
-
-        client.getEventDispatcher().subscribeTo(ConnectionSuccessfull.class, e -> printMessage("Connected to %s:%s",
-                                                                                               formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ConnectionFailed.class, e -> printMessageAndStackTrace("Failed to connect to %s:%s",
-                                                                                                       e,
-                                                                                                       formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ConnectionLost.class, e -> printMessageAndStackTrace("Connection to %s:%s lost",
-                                                                                                     e,
-                                                                                                     formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ReconnectStarted.class, e -> printMessage("Attempting to reconnect to %s:%s",
-                                                                                          formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ReconnectSuccessfull.class, e -> printMessage("Successfully reconnected to %s:%s",
-                                                                                              formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ReconnectFailed.class, e -> printMessageAndStackTrace("Failed to reconnect to %s:%s",
-                                                                                                      e,
-                                                                                                      formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ReconnectAttemptFailed.class, e -> printErrorMessage("Attempt %s/%s failed",
-                                                                                                     Style.apply(e.getAttempt() + "", "-red", "yellow"),
-                                                                                                     Style.apply((e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts() + ""), "-red", "yellow")));
-
-        client.getEventDispatcher().subscribeTo(UnspecifiedException.class, e -> printMessageAndStackTrace("Error", e));
-
-        this.client.start();
+        this.server.start();
         this.input = new Scanner(System.in);
         InstanceKiller.killOnShutdown(this);
-
-        if (!this.client.isConnected())
-        {
-            System.exit(-1);
-        }
     }
 
-    private String[] formatHostPort(ClientEvent e)
+    private String[] formatClientPort(ServerClientEvent e)
     {
         return new String[]
                 {
                         Style.apply(e.getClient().getHost(), "-red", "yellow"),
                         Style.apply(e.getClient().getPort() + "", "-red", "yellow")
                 };
-    }
-
-    private void printMessageAndStackTrace(String message, ClientExceptionEvent e, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
-        System.err.println(Style.apply(e.getException()));
-    }
-
-    private void printMessage(String message, String... formatStrings)
-    {
-        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
-    }
-
-    private void printErrorMessage(String message, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red"), formatStrings));
     }
 
     protected void handleInput()
@@ -159,21 +116,20 @@ public class BtServerConsole implements Killable
 
             try
             {
-                if (this.objectClient)
+                for (var client : this.server.getClients())
                 {
-                    Object response = ((ObjectClient)this.client).send(cmd).get();
+                    Object response = ((ObjectClient)client).send(cmd).get();
 
-                    if (response instanceof Throwable)
+                    if (response != null)
                     {
-                        System.err.println(Style.apply((Throwable)response));
-                        continue;
-                    }
+                        if (response instanceof Throwable)
+                        {
+                            System.err.println(Style.apply((Throwable)response));
+                            continue;
+                        }
 
-                    System.out.println(response);
-                }
-                else
-                {
-                    ((RawClient)this.client).send(cmd.getBytes(StandardCharsets.UTF_8));
+                        System.out.println(response);
+                    }
                 }
             }
             catch (AsyncException e)
@@ -187,9 +143,32 @@ public class BtServerConsole implements Killable
         }
     }
 
+    private void printMessageAndStackTrace(String message, Exception e, String... formatStrings)
+    {
+        System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
+        System.err.println(Style.apply(e));
+    }
+
+    private void printErrorMessage(String message, String... formatStrings)
+    {
+        System.err.println(String.format(Style.apply(message, "red"), formatStrings));
+    }
+
+    private void printMessage(String message, String... formatStrings)
+    {
+        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
+    }
+
     @Override
     public void kill()
     {
         Exceptions.ignoreThrow(() -> Null.checkClose(this.input));
+    }
+
+    @Override
+    public Object process(Data data)
+    {
+        System.out.println(data.get().toString());
+        return null;
     }
 }

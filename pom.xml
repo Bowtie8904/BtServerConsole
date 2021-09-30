@@ -1,9 +1,10 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>BtServerConsole</groupId>
-  <artifactId>BtServerConsole</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
-  <repositories>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>BtServerConsole</groupId>
+    <artifactId>BtServerConsole</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <repositories>
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
@@ -25,9 +26,14 @@
             <artifactId>BtConsole</artifactId>
             <version>c3dc3a82</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.Bowtie8904</groupId>
+            <artifactId>BtRemote</artifactId>
+            <version>110d4292</version>
+        </dependency>
     </dependencies>
-  <build>
-    <sourceDirectory>src</sourceDirectory>
+    <build>
+        <sourceDirectory>src</sourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -47,7 +53,7 @@
                         <configuration>
                             <transformers>
                                 <transformer
-                                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <!-- fill this below with your class -->
                                     <mainClass>bt.Main</mainClass>
                                 </transformer>
@@ -56,6 +62,6 @@
                     </execution>
                 </executions>
             </plugin>
-    </plugins>
-  </build>
+        </plugins>
+    </build>
 </project>

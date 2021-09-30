@@ -9,6 +9,8 @@ import bt.console.input.FlagArgument;
 import bt.console.input.ValueArgument;
 import bt.console.output.styled.Style;
 import bt.remote.socket.MulticastClient;
+import bt.remote.socket.evnt.mcast.MulticastClientKilled;
+import bt.remote.socket.evnt.mcast.MulticastClientStarted;
 import bt.scheduler.Threads;
 
 /**
@@ -30,21 +32,30 @@ public class Main
                                                         .description("[Optional] Sets the hostname to connect to. Ommit to connect to localhost.");
 
             var portCmd = new ValueArgument("port", "p").usage("-port <portnumber>")
-                                                        .description("Sets the port to connect to.");
+                                                        .description("Sets the port to connect to or the port to listen on if the server flag is used.");
 
             var rawCmd = new FlagArgument("raw", "r").usage("-raw")
                                                      .description("[Optional] Sets the type of client to raw to send and receive raw byte data.");
+
+            var serverCmd = new FlagArgument("server", "s").usage("-server")
+                                                           .description("[Optional] Indicates that a server should be created instead of a client.");
 
             parser.register(discoverCmd);
             parser.register(hostCmd);
             parser.register(portCmd);
             parser.register(rawCmd);
+            parser.register(serverCmd);
             parser.registerDefaultHelpArgument("help", "h");
             parser.parse(args);
 
             if (discoverCmd.isExecuted())
             {
                 var client = new MulticastClient(MulticastClient.DEFAULT_PORT, MulticastClient.DEFAULT_GROUP_ADDRESS);
+                client.getEventDispatcher().subscribeTo(MulticastClientStarted.class, e -> printMessage("Started multicast client %s:%s",
+                                                                                                        formatHostPort()));
+
+                client.getEventDispatcher().subscribeTo(MulticastClientKilled.class, e -> printMessage("Killed multicast client %s:%s",
+                                                                                                       formatHostPort()));
 
                 client.onMulticastReceive(packet ->
                                           {
@@ -52,7 +63,7 @@ public class Main
 
                                               if (!message.trim().equalsIgnoreCase("discover"))
                                               {
-                                                  System.out.println(message);
+                                                  System.out.println(Style.apply(message, "yellow"));
                                               }
                                           });
 
@@ -85,13 +96,22 @@ public class Main
                 if (parser.wasExecuted("port"))
                 {
                     port = Integer.parseInt(portCmd.getValue());
-                    String host = hostCmd.getValue() != null ? hostCmd.getValue() : "localhost";
-                    new BtServerConsole(host, port, !rawCmd.isExecuted());
+
+                    if (serverCmd.getFlag())
+                    {
+                        new BtServerConsole(port);
+                    }
+                    else
+                    {
+                        String host = hostCmd.getValue() != null ? hostCmd.getValue() : "localhost";
+                        new BtClientConsole(host, port, !rawCmd.isExecuted());
+                    }
+
                     System.exit(0);
                 }
                 else
                 {
-                    System.out.println(Style.apply("Usage: btc [-host <hostname>] -port <portnumber> [-raw]", "red"));
+                    System.out.println(Style.apply("Usage: btc [-host <hostname>] -port <portnumber> [-raw] [-server]", "red"));
                 }
             }
         }
@@ -100,5 +120,19 @@ public class Main
             System.err.println(Style.apply(e));
             System.exit(-1);
         }
+    }
+
+    private static void printMessage(String message, String... formatStrings)
+    {
+        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
+    }
+
+    private static String[] formatHostPort()
+    {
+        return new String[]
+                {
+                        Style.apply(MulticastClient.DEFAULT_GROUP_ADDRESS, "-red", "yellow"),
+                        Style.apply(MulticastClient.DEFAULT_PORT + "", "-red", "yellow")
+                };
     }
 }
