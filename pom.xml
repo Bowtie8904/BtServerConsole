@@ -14,17 +14,12 @@
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtCommons</artifactId>
-            <version>master-SNAPSHOT</version>
+            <version>f6bb77d5</version>
         </dependency>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtDatabase</artifactId>
             <version>b666c737</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.Bowtie8904</groupId>
-            <artifactId>BtConsole</artifactId>
-            <version>c3dc3a82</version>
         </dependency>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
