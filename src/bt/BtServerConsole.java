@@ -3,6 +3,7 @@ package bt;
 import bt.async.AsyncException;
 import bt.async.Data;
 import bt.console.output.styled.Style;
+import bt.db.statement.result.SqlResultSet;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.Server;
 import bt.remote.socket.ServerClient;
@@ -36,7 +37,7 @@ public class BtServerConsole implements Killable, DataProcessor
         }
         catch (IOException e)
         {
-            System.err.println(Style.apply(e));
+            e.printStackTrace();
             System.exit(-1);
         }
 
@@ -124,11 +125,20 @@ public class BtServerConsole implements Killable, DataProcessor
                     {
                         if (response instanceof Throwable)
                         {
-                            System.err.println(Style.apply((Throwable)response));
-                            continue;
+                            ((Throwable)response).printStackTrace();
                         }
+                        else if (response instanceof SqlResultSet)
+                        {
+                            SqlResultSet set = (SqlResultSet)response;
 
-                        System.out.println(response);
+                            System.out.println(set.toString(new String[] { "green", "bold" },
+                                                            new String[] { "white" },
+                                                            set.getColumnSizes()));
+                        }
+                        else
+                        {
+                            System.out.println(response);
+                        }
                     }
                 }
             }
@@ -138,7 +148,7 @@ public class BtServerConsole implements Killable, DataProcessor
             }
             catch (IOException e)
             {
-                System.err.println(Style.apply(e));
+                e.printStackTrace();
             }
         }
     }
@@ -146,7 +156,7 @@ public class BtServerConsole implements Killable, DataProcessor
     private void printMessageAndStackTrace(String message, Exception e, String... formatStrings)
     {
         System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
-        System.err.println(Style.apply(e));
+        e.printStackTrace();
     }
 
     private void printErrorMessage(String message, String... formatStrings)

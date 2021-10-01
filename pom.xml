@@ -13,13 +13,8 @@
     <dependencies>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
-            <artifactId>BtCommons</artifactId>
-            <version>20c4a1b6</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtDatabase</artifactId>
-            <version>b666c737</version>
+            <version>4de45abd</version>
         </dependency>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>

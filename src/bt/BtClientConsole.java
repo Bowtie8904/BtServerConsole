@@ -1,12 +1,8 @@
 package bt;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Scanner;
-
 import bt.async.AsyncException;
 import bt.console.output.styled.Style;
+import bt.db.statement.result.SqlResultSet;
 import bt.remote.socket.Client;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.RawClient;
@@ -15,6 +11,11 @@ import bt.runtime.InstanceKiller;
 import bt.types.Killable;
 import bt.utils.Exceptions;
 import bt.utils.Null;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class BtClientConsole implements Killable
 {
@@ -36,7 +37,7 @@ public class BtClientConsole implements Killable
         }
         catch (IOException e)
         {
-            System.err.println(Style.apply(e));
+            e.printStackTrace();
             System.exit(-1);
         }
 
@@ -46,13 +47,13 @@ public class BtClientConsole implements Killable
     public void init() throws IOException
     {
         System.out.println("\r\n====================================================="
-                           + "\r\n______ _   _____                       _      "
-                           + "\r\n| ___ \\ | /  __ \\                     | |     "
-                           + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
-                           + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
-                           + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
-                           + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
-                           + "\r\n=====================================================");
+                                   + "\r\n______ _   _____                       _      "
+                                   + "\r\n| ___ \\ | /  __ \\                     | |     "
+                                   + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
+                                   + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
+                                   + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
+                                   + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
+                                   + "\r\n=====================================================");
 
         if (this.objectClient)
         {
@@ -94,18 +95,18 @@ public class BtClientConsole implements Killable
                                                                                                            formatHostPort(e)));
 
         client.getEventDispatcher().subscribeTo(ClientReconnectStarted.class, e -> printMessage("Attempting to reconnect to %s:%s",
-                                                                                          formatHostPort(e)));
+                                                                                                formatHostPort(e)));
 
         client.getEventDispatcher().subscribeTo(ClientReconnectSuccessfull.class, e -> printMessage("Successfully reconnected to %s:%s",
-                                                                                              formatHostPort(e)));
+                                                                                                    formatHostPort(e)));
 
         client.getEventDispatcher().subscribeTo(ClientReconnectFailed.class, e -> printMessageAndStackTrace("Failed to reconnect to %s:%s",
-                                                                                                      e,
-                                                                                                      formatHostPort(e)));
+                                                                                                            e,
+                                                                                                            formatHostPort(e)));
 
         client.getEventDispatcher().subscribeTo(ClientReconnectAttemptFailed.class, e -> printErrorMessage("Attempt %s/%s failed",
-                                                                                                     Style.apply(e.getAttempt() + "", "-red", "yellow"),
-                                                                                                     Style.apply((e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts() + ""), "-red", "yellow")));
+                                                                                                           Style.apply(e.getAttempt() + "", "-red", "yellow"),
+                                                                                                           Style.apply((e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts() + ""), "-red", "yellow")));
 
         client.getEventDispatcher().subscribeTo(UnspecifiedClientException.class, e -> printMessageAndStackTrace("Error", e));
 
@@ -131,7 +132,7 @@ public class BtClientConsole implements Killable
     private void printMessageAndStackTrace(String message, ClientExceptionEvent e, String... formatStrings)
     {
         System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
-        System.err.println(Style.apply(e.getException()));
+        e.getException().printStackTrace();
     }
 
     private void printMessage(String message, String... formatStrings)
@@ -165,11 +166,19 @@ public class BtClientConsole implements Killable
 
                     if (response instanceof Throwable)
                     {
-                        System.err.println(Style.apply((Throwable)response));
-                        continue;
+                        ((Throwable)response).printStackTrace();
                     }
-
-                    System.out.println(response);
+                    else if (response instanceof SqlResultSet)
+                    {
+                        SqlResultSet set = (SqlResultSet)response;
+                        System.out.println(set.toString(new String[] { "green", "bold" },
+                                                        new String[] { "white" },
+                                                        set.getColumnSizes()));
+                    }
+                    else
+                    {
+                        System.out.println(response);
+                    }
                 }
                 else
                 {
@@ -182,7 +191,7 @@ public class BtClientConsole implements Killable
             }
             catch (IOException e)
             {
-                System.err.println(Style.apply(e));
+                e.printStackTrace();
             }
         }
     }
