@@ -172,8 +172,7 @@ public class BtClientConsole implements Killable
                     {
                         SqlResultSet set = (SqlResultSet)response;
                         System.out.println(set.toString(new String[] { "green", "bold" },
-                                                        new String[] { "white" },
-                                                        set.getColumnSizes()));
+                                                        new String[] { "white" }));
                     }
                     else
                     {

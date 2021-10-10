@@ -14,7 +14,7 @@
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtDatabase</artifactId>
-            <version>4de45abd</version>
+            <version>7b49549c</version>
         </dependency>
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
