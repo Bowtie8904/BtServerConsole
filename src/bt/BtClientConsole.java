@@ -2,12 +2,16 @@ package bt;
 
 import bt.async.AsyncException;
 import bt.console.output.styled.Style;
+import bt.db.listener.evnt.DeleteEvent;
+import bt.db.listener.evnt.InsertEvent;
+import bt.db.listener.evnt.UpdateEvent;
 import bt.db.statement.result.SqlResultSet;
 import bt.remote.socket.Client;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.RawClient;
 import bt.remote.socket.evnt.client.*;
 import bt.runtime.InstanceKiller;
+import bt.scheduler.Threads;
 import bt.types.Killable;
 import bt.utils.Exceptions;
 import bt.utils.Null;
@@ -59,7 +63,7 @@ public class BtClientConsole implements Killable
         {
             this.client = new ObjectClient(this.host, this.port);
             ((ObjectClient)this.client).setDataProcessor(data -> {
-                System.out.println(data.get());
+                Threads.get().executeCached(() -> processObjectResponse(data.get()));
                 return null;
             });
         }
@@ -145,6 +149,58 @@ public class BtClientConsole implements Killable
         System.err.println(String.format(Style.apply(message, "red"), formatStrings));
     }
 
+    protected void processObjectResponse(Object response)
+    {
+        if (response instanceof Throwable)
+        {
+            ((Throwable)response).printStackTrace();
+        }
+        else if (response instanceof SqlResultSet)
+        {
+            SqlResultSet set = (SqlResultSet)response;
+            System.out.println(set.toString(new String[] { "green", "bold" },
+                                            new String[] { "white" }));
+        }
+        else if (response instanceof InsertEvent)
+        {
+            InsertEvent ev = (InsertEvent)response;
+
+            try
+            {
+                System.out.println("Inserted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
+                Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
+                processObjectResponse(resultSet);
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+        else if (response instanceof DeleteEvent)
+        {
+            DeleteEvent ev = (DeleteEvent)response;
+            System.out.println("Deleted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
+        }
+        else if (response instanceof UpdateEvent)
+        {
+            UpdateEvent ev = (UpdateEvent)response;
+            try
+            {
+                System.out.println("Updated row in table " + ev.getTable() + " with id " + ev.getID() + ".");
+                Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
+                processObjectResponse(resultSet);
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+        else
+        {
+            System.out.println(response);
+        }
+    }
+
     protected void handleInput()
     {
         boolean continueToRun = true;
@@ -164,20 +220,7 @@ public class BtClientConsole implements Killable
                 {
                     Object response = ((ObjectClient)this.client).send(cmd).get();
 
-                    if (response instanceof Throwable)
-                    {
-                        ((Throwable)response).printStackTrace();
-                    }
-                    else if (response instanceof SqlResultSet)
-                    {
-                        SqlResultSet set = (SqlResultSet)response;
-                        System.out.println(set.toString(new String[] { "green", "bold" },
-                                                        new String[] { "white" }));
-                    }
-                    else
-                    {
-                        System.out.println(response);
-                    }
+                    processObjectResponse(response);
                 }
                 else
                 {
