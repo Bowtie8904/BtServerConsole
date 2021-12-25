@@ -1,15 +1,14 @@
 package bt;
 
 import bt.async.AsyncException;
-import bt.console.output.styled.Style;
 import bt.db.listener.evnt.DeleteEvent;
 import bt.db.listener.evnt.InsertEvent;
 import bt.db.listener.evnt.UpdateEvent;
 import bt.db.statement.result.SqlResultSet;
+import bt.log.Log;
 import bt.remote.socket.Client;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.RawClient;
-import bt.remote.socket.evnt.client.*;
 import bt.runtime.InstanceKiller;
 import bt.scheduler.Threads;
 import bt.types.Killable;
@@ -41,7 +40,7 @@ public class BtClientConsole implements Killable
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            Log.error("Failed to initialize", e);
             System.exit(-1);
         }
 
@@ -50,14 +49,14 @@ public class BtClientConsole implements Killable
 
     public void init() throws IOException
     {
-        System.out.println("\r\n====================================================="
-                                   + "\r\n______ _   _____                       _      "
-                                   + "\r\n| ___ \\ | /  __ \\                     | |     "
-                                   + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
-                                   + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
-                                   + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
-                                   + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
-                                   + "\r\n=====================================================");
+        Log.info("\r\n====================================================="
+                         + "\r\n______ _   _____                       _      "
+                         + "\r\n| ___ \\ | /  __ \\                     | |     "
+                         + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
+                         + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
+                         + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
+                         + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
+                         + "\r\n=====================================================");
 
         if (this.objectClient)
         {
@@ -78,7 +77,7 @@ public class BtClientConsole implements Killable
                     intData[i] = Byte.toUnsignedInt(data[i]);
                 }
 
-                System.out.println(Arrays.toString(intData));
+                Log.info(Arrays.toString(intData));
 
                 return null;
             });
@@ -87,32 +86,7 @@ public class BtClientConsole implements Killable
         this.client.setSingleThreadProcessing(true);
         this.client.autoReconnect(3);
 
-        client.getEventDispatcher().subscribeTo(ClientConnectionSuccessfull.class, e -> printMessage("Connected to %s:%s",
-                                                                                                     formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientConnectionFailed.class, e -> printMessageAndStackTrace("Failed to connect to %s:%s",
-                                                                                                             e,
-                                                                                                             formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientConnectionLost.class, e -> printMessageAndStackTrace("Connection to %s:%s lost",
-                                                                                                           e,
-                                                                                                           formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientReconnectStarted.class, e -> printMessage("Attempting to reconnect to %s:%s",
-                                                                                                formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientReconnectSuccessfull.class, e -> printMessage("Successfully reconnected to %s:%s",
-                                                                                                    formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientReconnectFailed.class, e -> printMessageAndStackTrace("Failed to reconnect to %s:%s",
-                                                                                                            e,
-                                                                                                            formatHostPort(e)));
-
-        client.getEventDispatcher().subscribeTo(ClientReconnectAttemptFailed.class, e -> printErrorMessage("Attempt %s/%s failed",
-                                                                                                           Style.apply(e.getAttempt() + "", "-red", "yellow"),
-                                                                                                           Style.apply((e.getMaxAttempts() == -1 ? "-" : e.getMaxAttempts() + ""), "-red", "yellow")));
-
-        client.getEventDispatcher().subscribeTo(UnspecifiedClientException.class, e -> printMessageAndStackTrace("Error", e));
+        this.client.configureDefaultEventListeners();
 
         this.client.start();
         this.input = new Scanner(System.in);
@@ -124,80 +98,58 @@ public class BtClientConsole implements Killable
         }
     }
 
-    private String[] formatHostPort(ClientEvent e)
-    {
-        return new String[]
-                {
-                        Style.apply(e.getClient().getHost(), "-red", "yellow"),
-                        Style.apply(e.getClient().getPort() + "", "-red", "yellow")
-                };
-    }
-
-    private void printMessageAndStackTrace(String message, ClientExceptionEvent e, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
-        e.getException().printStackTrace();
-    }
-
-    private void printMessage(String message, String... formatStrings)
-    {
-        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
-    }
-
-    private void printErrorMessage(String message, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red"), formatStrings));
-    }
-
     protected void processObjectResponse(Object response)
     {
-        if (response instanceof Throwable)
+        if (response != null)
         {
-            ((Throwable)response).printStackTrace();
-        }
-        else if (response instanceof SqlResultSet)
-        {
-            SqlResultSet set = (SqlResultSet)response;
-            System.out.println(set.toString(new String[] { "green", "bold" },
-                                            new String[] { "white" }));
-        }
-        else if (response instanceof InsertEvent)
-        {
-            InsertEvent ev = (InsertEvent)response;
+            if (response instanceof Throwable)
+            {
+                Log.error("Received Exception from server", (Throwable)response);
+            }
+            else if (response instanceof SqlResultSet)
+            {
+                SqlResultSet set = (SqlResultSet)response;
+                Log.info(set.toString(new String[] { "green", "bold" },
+                                      new String[] { "white" }));
+            }
+            else if (response instanceof InsertEvent)
+            {
+                InsertEvent ev = (InsertEvent)response;
 
-            try
-            {
-                System.out.println("Inserted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
-                Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
-                processObjectResponse(resultSet);
+                try
+                {
+                    Log.info("Inserted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
+                    Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
+                    processObjectResponse(resultSet);
+                }
+                catch (IOException e)
+                {
+                    Log.error("Failed to select inserted row", e);
+                }
             }
-            catch (IOException e)
+            else if (response instanceof DeleteEvent)
             {
-                e.printStackTrace();
+                DeleteEvent ev = (DeleteEvent)response;
+                Log.info("Deleted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
             }
-        }
-        else if (response instanceof DeleteEvent)
-        {
-            DeleteEvent ev = (DeleteEvent)response;
-            System.out.println("Deleted row in table " + ev.getTable() + " with id " + ev.getID() + ".");
-        }
-        else if (response instanceof UpdateEvent)
-        {
-            UpdateEvent ev = (UpdateEvent)response;
-            try
+            else if (response instanceof UpdateEvent)
             {
-                System.out.println("Updated row in table " + ev.getTable() + " with id " + ev.getID() + ".");
-                Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
-                processObjectResponse(resultSet);
+                UpdateEvent ev = (UpdateEvent)response;
+                try
+                {
+                    Log.info("Updated row in table " + ev.getTable() + " with id " + ev.getID() + ".");
+                    Object resultSet = ((ObjectClient)this.client).send("select * from " + ev.getTable() + " where " + ev.getIDFieldName() + " = " + ev.getID()).get();
+                    processObjectResponse(resultSet);
+                }
+                catch (IOException e)
+                {
+                    Log.error("Failed to select updated row", e);
+                }
             }
-            catch (IOException e)
+            else
             {
-                e.printStackTrace();
+                Log.info(response.toString());
             }
-        }
-        else
-        {
-            System.out.println(response);
         }
     }
 
@@ -229,11 +181,11 @@ public class BtClientConsole implements Killable
             }
             catch (AsyncException e)
             {
-                printErrorMessage("Request timed out.");
+                Log.error("Request timed out.");
             }
             catch (IOException e)
             {
-                e.printStackTrace();
+                Log.error("Failed to send request", e);
             }
         }
     }

@@ -14,12 +14,7 @@
         <dependency>
             <groupId>com.github.Bowtie8904</groupId>
             <artifactId>BtDatabase</artifactId>
-            <version>f2040215</version>
-        </dependency>
-        <dependency>
-            <groupId>com.github.Bowtie8904</groupId>
-            <artifactId>BtRemote</artifactId>
-            <version>110d4292</version>
+            <version>20e4e2f2</version>
         </dependency>
     </dependencies>
     <build>

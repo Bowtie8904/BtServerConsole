@@ -4,14 +4,12 @@ import bt.async.AsyncException;
 import bt.async.Data;
 import bt.console.output.styled.Style;
 import bt.db.statement.result.SqlResultSet;
+import bt.log.Log;
 import bt.remote.socket.ObjectClient;
 import bt.remote.socket.Server;
 import bt.remote.socket.ServerClient;
 import bt.remote.socket.data.DataProcessor;
-import bt.remote.socket.evnt.mcast.MulticastClientKilled;
-import bt.remote.socket.evnt.mcast.MulticastClientStarted;
-import bt.remote.socket.evnt.mcast.UnspecifiedMulticastClientException;
-import bt.remote.socket.evnt.server.*;
+import bt.remote.socket.evnt.server.ServerClientEvent;
 import bt.runtime.InstanceKiller;
 import bt.types.Killable;
 import bt.utils.Exceptions;
@@ -37,7 +35,7 @@ public class BtServerConsole implements Killable, DataProcessor
         }
         catch (IOException e)
         {
-            e.printStackTrace();
+            Log.error("Failed to initialize", e);
             System.exit(-1);
         }
 
@@ -46,14 +44,14 @@ public class BtServerConsole implements Killable, DataProcessor
 
     public void init() throws IOException
     {
-        System.out.println("\r\n====================================================="
-                                   + "\r\n______ _   _____                       _      "
-                                   + "\r\n| ___ \\ | /  __ \\                     | |     "
-                                   + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
-                                   + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
-                                   + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
-                                   + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
-                                   + "\r\n=====================================================");
+        Log.info("\r\n====================================================="
+                         + "\r\n______ _   _____                       _      "
+                         + "\r\n| ___ \\ | /  __ \\                     | |     "
+                         + "\r\n| |_/ / |_| /  \\/ ___  _ __  ___  ___ | | ___ "
+                         + "\r\n| ___ \\ __| |    / _ \\| '_ \\/ __|/ _ \\| |/ _ \\"
+                         + "\r\n| |_/ / |_| \\__/\\ (_) | | | \\__ \\ (_) | |  __/"
+                         + "\r\n\\____/ \\__|\\____/\\___/|_| |_|___/\\___/|_|\\___|"
+                         + "\r\n=====================================================");
 
         this.server = new Server(this.port)
         {
@@ -68,22 +66,7 @@ public class BtServerConsole implements Killable, DataProcessor
             }
         };
 
-        this.server.getEventDispatcher().subscribeTo(ServerKilled.class, e -> printMessage("Server stopped listening on port %s",
-                                                                                           Style.apply(e.getServer().getPort() + "", "yellow")));
-        this.server.getEventDispatcher().subscribeTo(ServerStarted.class, e -> printMessage("Server started listening on port %s",
-                                                                                            Style.apply(e.getServer().getPort() + "", "yellow")));
-        this.server.getEventDispatcher().subscribeTo(NewClientConnection.class, e -> printMessage("New connection to %s:%s",
-                                                                                                  formatClientPort(e)));
-        this.server.getEventDispatcher().subscribeTo(RemovedClientConnection.class, e -> printMessage("Connection to %s:%s ended",
-                                                                                                      formatClientPort(e)));
-        this.server.getEventDispatcher().subscribeTo(MulticastClientStarted.class, e -> printMessage("Multicast client started listening on %s:%s",
-                                                                                                     Style.apply(e.getClient().getMulticastGroup().getHostAddress(), "yellow"),
-                                                                                                     Style.apply(e.getClient().getPort() + "", "yellow")));
-        this.server.getEventDispatcher().subscribeTo(MulticastClientKilled.class, e -> printMessage("Multicast client stopped listening on %s:%s",
-                                                                                                    Style.apply(e.getClient().getMulticastGroup().getHostAddress(), "yellow"),
-                                                                                                    Style.apply(e.getClient().getPort() + "", "yellow")));
-        this.server.getEventDispatcher().subscribeTo(UnspecifiedServerException.class, e -> printMessageAndStackTrace("Error", e.getException()));
-        this.server.getEventDispatcher().subscribeTo(UnspecifiedMulticastClientException.class, e -> printMessageAndStackTrace("Error", e.getException()));
+        this.server.configureDefaultEventListeners();
 
         this.server.setupMultiCastDiscovering();
         this.server.setName("BtServerConsole:" + this.port);
@@ -125,47 +108,31 @@ public class BtServerConsole implements Killable, DataProcessor
                     {
                         if (response instanceof Throwable)
                         {
-                            ((Throwable)response).printStackTrace();
+                            Log.error("Received Exception from client", (Throwable)response);
                         }
                         else if (response instanceof SqlResultSet)
                         {
                             SqlResultSet set = (SqlResultSet)response;
 
-                            System.out.println(set.toString(new String[] { "green", "bold" },
-                                                            new String[] { "white" }));
+                            Log.info(set.toString(new String[] { "green", "bold" },
+                                                  new String[] { "white" }));
                         }
                         else
                         {
-                            System.out.println(response);
+                            Log.info(response.toString());
                         }
                     }
                 }
             }
             catch (AsyncException e)
             {
-                printErrorMessage("Request timed out.");
+                Log.error("Request timed out.");
             }
             catch (IOException e)
             {
-                e.printStackTrace();
+                Log.error("Failed to send request", e);
             }
         }
-    }
-
-    private void printMessageAndStackTrace(String message, Exception e, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red", "bold"), formatStrings));
-        e.printStackTrace();
-    }
-
-    private void printErrorMessage(String message, String... formatStrings)
-    {
-        System.err.println(String.format(Style.apply(message, "red"), formatStrings));
-    }
-
-    private void printMessage(String message, String... formatStrings)
-    {
-        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
     }
 
     @Override
@@ -177,7 +144,7 @@ public class BtServerConsole implements Killable, DataProcessor
     @Override
     public Object process(Data data)
     {
-        System.out.println(data.get().toString());
+        Log.info(data.get().toString());
         return null;
     }
 }

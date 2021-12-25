@@ -4,15 +4,19 @@ import bt.console.input.ArgumentParser;
 import bt.console.input.FlagArgument;
 import bt.console.input.ValueArgument;
 import bt.console.output.styled.Style;
-import bt.log.Logger;
+import bt.console.output.styled.log.DestyledLogFormatter;
+import bt.console.output.styled.log.StyledLogFormatter;
+import bt.log.ConsoleLoggerHandler;
+import bt.log.FileLoggerHandler;
+import bt.log.Log;
+import bt.log.LoggerConfiguration;
 import bt.remote.socket.MulticastClient;
-import bt.remote.socket.evnt.mcast.MulticastClientKilled;
-import bt.remote.socket.evnt.mcast.MulticastClientStarted;
 import bt.scheduler.Threads;
 
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 /**
  * @author &#8904
@@ -21,11 +25,21 @@ public class Main
 {
     public static void main(String[] args) throws IOException
     {
-        Logger.global().hookSystemErr();
-        Logger.global().hookSystemOut();
-        Logger.global().setLogToFile(false);
-        Logger.global().setPrintCaller(false);
-        Logger.global().setPrintTimestamp(false);
+        Log.createDefaultLogFolder();
+
+        var consoleLogConfig = new LoggerConfiguration().level(Level.INFO)
+                                                        .printCaller(false)
+                                                        .printLogLevel(false)
+                                                        .printThreadName(false)
+                                                        .printTimestamp(false);
+        var consoleHandler = new ConsoleLoggerHandler(consoleLogConfig);
+        consoleHandler.setFormatter(new StyledLogFormatter(consoleLogConfig));
+
+        var fileLogConfig = new LoggerConfiguration().level(Level.FINE);
+        var fileHandler = new FileLoggerHandler(fileLogConfig);
+        fileHandler.setFormatter(new DestyledLogFormatter(fileLogConfig));
+
+        Log.configureDefaultJDKLogger(consoleHandler, fileHandler);
 
         var parser = new ArgumentParser("-");
 
@@ -56,11 +70,7 @@ public class Main
         if (discoverCmd.isExecuted())
         {
             var client = new MulticastClient(MulticastClient.DEFAULT_PORT, MulticastClient.DEFAULT_GROUP_ADDRESS);
-            client.getEventDispatcher().subscribeTo(MulticastClientStarted.class, e -> printMessage("Started multicast client %s:%s",
-                                                                                                    formatHostPort()));
-
-            client.getEventDispatcher().subscribeTo(MulticastClientKilled.class, e -> printMessage("Killed multicast client %s:%s",
-                                                                                                   formatHostPort()));
+            client.configureDefaultEventListeners();
 
             client.onMulticastReceive(packet ->
                                       {
@@ -68,7 +78,7 @@ public class Main
 
                                           if (!message.trim().equalsIgnoreCase("discover"))
                                           {
-                                              System.out.println(Style.apply(message, "yellow"));
+                                              Log.info(Style.apply(message, "yellow"));
                                           }
                                       });
 
@@ -82,7 +92,7 @@ public class Main
                                        }
                                        catch (IOException e)
                                        {
-                                           System.err.println(Style.apply(e));
+                                           Log.error("Failed to send discover request", e);
                                        }
 
                                    }, 1, TimeUnit.SECONDS);
@@ -116,22 +126,8 @@ public class Main
             }
             else
             {
-                System.err.println("Usage: btc [-host <hostname>] -port <portnumber> [-raw] [-server]");
+                Log.error("Usage: btc [-host <hostname>] -port <portnumber> [-raw] [-server]");
             }
         }
-    }
-
-    private static void printMessage(String message, String... formatStrings)
-    {
-        System.out.println(String.format(Style.apply(message, "default_text"), formatStrings));
-    }
-
-    private static String[] formatHostPort()
-    {
-        return new String[]
-                {
-                        Style.apply(MulticastClient.DEFAULT_GROUP_ADDRESS, "-red", "yellow"),
-                        Style.apply(MulticastClient.DEFAULT_PORT + "", "-red", "yellow")
-                };
     }
 }
